@@ -423,6 +423,8 @@ def energy_effect_plot():
         fig.add_trace(bar)
     for i, series in enumerate(kW_labels):
         fig.add_trace(go.Scatter(x=df['Måneder'], y=df[series], name=series, yaxis='y2', mode='lines+markers', line=dict(width=1, color="black", dash = "dot"), marker=dict(color=COLORS[i], symbol="diamond", line=dict(width=1, color = "black"))))
+    
+    # Denne figuren vises ikke på streamlit siden (18.01.2024)
     fig.update_layout(
         showlegend=False,
         margin=dict(b=0, t=0),
@@ -449,7 +451,7 @@ def energy_effect_delivered_plot():
         heat_production = True
         COLORS = [ELECTRIC_COLOR, THERMAL_COLOR, PRODUCED_HEAT_COLOR, TOTAL_COLOR]
         kWh_labels = ['Elektrisk (kWh)', 'Termisk (kWh)', 'Varmeproduksjon (kWh)']
-        kW_labels = ['Elektrisk (kW)', 'Termisk (kW)', 'Varmeproduksjon (kW)', 'Totalt (kW)']
+        kW_labels = ['Elektrisk (kW)', 'Termisk (kW)', 'Varmeproduksjon (kW)'] #, 'Totalt (kW)'
 
     df = pd.DataFrame({
         "Måneder" : MONTHS,
@@ -491,7 +493,10 @@ def energy_effect_delivered_plot():
     
     y_max_energy = np.max(df["Totalt (kWh)"] * 1.1)
     y_max_effect = np.max(df["Totalt (kW)"] * 1.1)
-    fig = go.Figure()
+    
+    st.markdown('---')
+    st.markdown(f"<span style='color:{AFTER_COLOR}'>Nåværende energibehov".replace(",", " "), unsafe_allow_html=True)
+    fig = go.Figure(layout=go.Layout(showlegend=True))
     
     for i, series in enumerate(kWh_labels):
         if series == 'Varmeproduksjon (kWh)':
@@ -500,19 +505,35 @@ def energy_effect_delivered_plot():
             pattern_shape=None
         bar = go.Bar(x=df['Måneder'], y=df[series], name=series, yaxis='y', marker=dict(color=COLORS[i], line=dict(color='black', width=2)), marker_pattern_shape=pattern_shape)
         fig.add_trace(bar)
-    for i, series in enumerate(kW_labels):
-        fig.add_trace(go.Scatter(x=df['Måneder'], y=df[series], name=series, yaxis='y2', mode='lines+markers', line=dict(width=1, color="black", dash = "dot"), marker=dict(color=COLORS[i], symbol="diamond", line=dict(width=1, color = "black"))))
+   
     fig.update_layout(
-        showlegend=False,
         margin=dict(b=0, t=0),
-        yaxis=dict(title=None, side='left', showgrid=True, tickformat=",.0f", range=[0, y_max_energy]),
-        yaxis2=dict(title=None, side='right', overlaying='y', showgrid=True, range=[0, y_max_effect]),
+        yaxis=dict(title='Energi (kWh)', side='left', showgrid=True, tickformat=",.0f", range=[0, y_max_energy]),
         xaxis=dict(title=None, showgrid=True, tickformat=",.0f"),
         barmode='relative',
-        yaxis_ticksuffix=" kWh",
-        yaxis2_ticksuffix=" kW",
         separators="* .*",
-        height=250
+        height=300
+        )
+    st.plotly_chart(fig, use_container_width=True, config = {'displayModeBar': True, 'staticPlot': True})
+
+    st.markdown('---')
+    st.markdown(f"<span style='color:{AFTER_COLOR}'>Nåværende maksimalt effektbehov".replace(",", " "), unsafe_allow_html=True)
+    fig = go.Figure()
+    
+    for i, series in enumerate(kW_labels):
+        if series == 'Varmeproduksjon (kW)':
+            pattern_shape="x"
+        else:
+            pattern_shape=None
+        bar = go.Bar(x=df['Måneder'], y=df[series], name=series, yaxis='y', marker=dict(color=COLORS[i], line=dict(color='black', width=2)), marker_pattern_shape=pattern_shape)
+        fig.add_trace(bar)
+    fig.update_layout(
+        margin=dict(b=0, t=0),
+        yaxis=dict(title='Effekt (kW)', side='left', showgrid=True, tickformat=",.0f", range=[0, y_max_effect]),
+        xaxis=dict(title=None, showgrid=True, tickformat=",.0f"),
+        barmode='relative',
+        separators="* .*",
+        height=300
         )
     st.plotly_chart(fig, use_container_width=True, config = {'displayModeBar': True, 'staticPlot': True})
 
@@ -520,11 +541,11 @@ def energy_effect_scenario_plot():
     df = pd.DataFrame({
         "Måneder" : MONTHS,
         "Scenario (kW)" : results[selected_scenario_name]["dict_months_max"]["grid"],
-        "Renewable (kW)" : np.array(results[selected_scenario_name]["dict_months_max"]["total_delivered"]) - np.array(results[selected_scenario_name]["dict_months_max"]["grid"]),
+        "Fornybart (kW)" : np.array(results[selected_scenario_name]["dict_months_max"]["total_delivered"]) - np.array(results[selected_scenario_name]["dict_months_max"]["grid"]),
         "Totalt (kW)" : results[selected_scenario_name]["dict_months_max"]["total"],
         "Totalt levert (kW)" : results[selected_scenario_name]["dict_months_max"]["total_delivered"],
         "Scenario (kWh)" : results[selected_scenario_name]["dict_months_sum"]["grid"],
-        "Renewable (kWh)" : np.array(results[selected_scenario_name]["dict_months_sum"]["total_delivered"]) - np.array(results[selected_scenario_name]["dict_months_sum"]["grid"]),
+        "Fornybart (kWh)" : np.array(results[selected_scenario_name]["dict_months_sum"]["total_delivered"]) - np.array(results[selected_scenario_name]["dict_months_sum"]["grid"]),
         "Totalt (kWh)" : results[selected_scenario_name]["dict_months_sum"]["total"],
         "Totalt levert (kWh)" : results[selected_scenario_name]["dict_months_sum"]["total_delivered"],
     })
@@ -534,7 +555,7 @@ def energy_effect_scenario_plot():
         with st.expander("Mer informasjon"):
             st.markdown(download_link(df = df, filename = "data.csv"), unsafe_allow_html=True)
     with col2:
-        metric(text = f"Ny fornybar energi (*{selected_scenario_name}*)", color = RENEWABLE_COLOR, energy = np.sum(df["Renewable (kWh)"]), effect = np.max(df["Renewable (kW)"]))
+        metric(text = f"Ny fornybar energi (*{selected_scenario_name}*)", color = RENEWABLE_COLOR, energy = np.sum(df["Fornybart (kWh)"]), effect = np.max(df["Fornybart (kW)"]))
         with st.expander("Mer informasjon"):
             st.markdown(download_link(df = df, filename = "data.csv"), unsafe_allow_html=True)
     with col3:
@@ -549,32 +570,45 @@ def energy_effect_scenario_plot():
     
     y_max_energy = np.max(df["Totalt (kWh)"] * 1.1)
     y_max_effect = np.max(df["Totalt (kW)"] * 1.1)
+
+    st.markdown('---')
+    st.markdown(f"<span style='color:{AFTER_COLOR}'>Energibehov i scenario *{selected_scenario_name}*".replace(",", " "), unsafe_allow_html=True)
     fig = go.Figure()
     COLORS = [AFTER_COLOR, RENEWABLE_COLOR, TOTAL_COLOR]
-    kWh_labels = ['Scenario (kWh)', "Renewable (kWh)"]
-    kW_labels = ['Scenario (kW)', "Renewable (kW)", "Totalt levert (kW)"]
+    kWh_labels = ['Scenario (kWh)', "Fornybart (kWh)"]
     for i, series in enumerate(kWh_labels):
         bar = go.Bar(x=df['Måneder'], y=df[series], name=series, yaxis='y', marker=dict(color=COLORS[i], line=dict(color='black', width=2)))
         fig.add_trace(bar)
-    for i, series in enumerate(kW_labels):
-        fig.add_trace(go.Scatter(x=df['Måneder'], y=df[series], name=series, yaxis='y2', mode='lines+markers', line=dict(width=1, color="black", dash = "dot"), marker=dict(color=COLORS[i], symbol="diamond", line=dict(width=1, color = "black"))))
+
     fig.update_layout(
-        showlegend=False,
         margin=dict(b=0, t=0),
-        yaxis=dict(title=None, side='left', showgrid=True, tickformat=",.0f", range=[0, y_max_energy]),
-        yaxis2=dict(title=None, side='right', overlaying='y', showgrid=True, range=[0, y_max_effect]),
+        yaxis=dict(title='Energi (kWh)', side='left', showgrid=True, tickformat=",.0f", range=[0, y_max_energy]),
         xaxis=dict(title=None, showgrid=True, tickformat=",.0f"),
         barmode='relative',
-        yaxis_ticksuffix=" kWh",
-        yaxis2_ticksuffix=" kW",
         separators="* .*",
-        height=250
+        height=300
+        )
+    st.plotly_chart(fig, use_container_width=True, config = {'displayModeBar': True, 'staticPlot': True})
+
+    st.markdown('---')
+    st.markdown(f"<span style='color:{AFTER_COLOR}'>Maksimalt effektbehov i scenario *{selected_scenario_name}*".replace(",", " "), unsafe_allow_html=True)
+    fig = go.Figure()
+    COLORS = [AFTER_COLOR, RENEWABLE_COLOR, TOTAL_COLOR]
+    kW_labels = ['Scenario (kW)', "Fornybart (kW)"]
+    for i, series in enumerate(kW_labels):
+        bar = go.Bar(x=df['Måneder'], y=df[series], name=series, yaxis='y', marker=dict(color=COLORS[i], line=dict(color='black', width=2)))
+        fig.add_trace(bar)
+    fig.update_layout(
+        margin=dict(b=0, t=0),
+        yaxis=dict(title='Effekt (kW)', side='left', showgrid=True, tickformat=",.0f", range=[0, y_max_effect]),
+        xaxis=dict(title=None, showgrid=True, tickformat=",.0f"),
+        barmode='relative',
+        separators="* .*",
+        height=300
         )
     st.plotly_chart(fig, use_container_width=True, config = {'displayModeBar': True, 'staticPlot': True})
 
 def energy_effect_comparison_plot():
-    st.markdown(f"<span style='color:{AFTER_COLOR}'>Fremtidig behov fra strømnettet for alle scenariene (kWh/år og kW)".replace(",", " "), unsafe_allow_html=True)
-    
 #    col1, col2, col3 = st.columns(3)
 #    with col1:
 #        metric(text = f"Fremtidig behov fra strømnettet", color = AFTER_COLOR, energy = results[selected_scenario_name]["dict_sum"]["grid"], effect = results[selected_scenario_name]["dict_max"]["grid"])
@@ -600,25 +634,42 @@ def energy_effect_comparison_plot():
     df.reset_index(drop=True, inplace=True)
     y_max_energy = np.max(df["energy"] * 1.1)
     y_max_effect = np.max(df["effect"] * 1.1)
+
+    st.markdown('---')
+    st.markdown(f"<span style='color:{AFTER_COLOR}'>Energibehov fra strømnettet i hvert scenario".replace(",", " "), unsafe_allow_html=True)
     fig = go.Figure()
     fig.add_trace(go.Bar(x=df["scenario"], y=df["energy"], marker=dict(color=AFTER_COLOR)))
-    fig.add_trace(go.Scatter(x=df["scenario"], y=df["effect"], yaxis='y2', mode='lines+markers', line=dict(width=1, color="black", dash = "dot"), marker=dict(color=AFTER_COLOR, symbol="diamond", line=dict(width=1, color = "black"))))
+    #fig.add_trace(go.Scatter(x=df["scenario"], y=df["effect"], yaxis='y2', mode='lines+markers', line=dict(width=1, color="black", dash = "dot"), marker=dict(color=AFTER_COLOR, symbol="diamond", line=dict(width=1, color = "black"))))
     fig.update_layout(
         showlegend=False,
         margin=dict(b=0, t=0),
-        yaxis=dict(title=None, side='left', showgrid=True, tickformat=",.0f", range=[0, y_max_energy]),
-        yaxis2=dict(title=None, side='right', overlaying='y', showgrid=True, range=[0, y_max_effect]),
+        yaxis=dict(title='Energi (kWh/år)', side='left', showgrid=True, tickformat=",.0f", range=[0, y_max_energy]),
+        #yaxis2=dict(title='Effekt (kW)', side='right', overlaying='y', showgrid=True, range=[0, y_max_effect]),
         xaxis=dict(title=None, showgrid=True, tickformat=",.0f"),
-        yaxis_ticksuffix=" kWh/år",
-        yaxis2_ticksuffix=" kW",
+        #yaxis_ticksuffix=" kWh/år",
+        #yaxis2_ticksuffix=" kW",
         separators="* .*",
-        height=300
+        height=250
+        )
+    st.plotly_chart(fig, use_container_width=True, config = {'displayModeBar': True, 'staticPlot': True})
+
+    st.markdown('---')
+    st.markdown(f"<span style='color:{AFTER_COLOR}'>Maksimalt effektbehov fra strømnettet i hvert scenario".replace(",", " "), unsafe_allow_html=True)
+    fig = go.Figure()
+    fig.add_trace(go.Bar(x=df["scenario"], y=df["effect"], marker=dict(color=AFTER_COLOR)))
+    fig.update_layout(
+        showlegend=False,
+        margin=dict(b=0, t=0),
+        yaxis=dict(title='Effekt (kW)', side='left', showgrid=True, tickformat=",.0f", range=[0, y_max_effect]),
+        xaxis=dict(title=None, showgrid=True, tickformat=",.0f"),
+        separators="* .*",
+        height=250
         )
     st.plotly_chart(fig, use_container_width=True, config = {'displayModeBar': True, 'staticPlot': True})
     #st.markdown(download_link(df = df, filename = "data.csv"), unsafe_allow_html=True)
 
 def duration_curve_plot():
-    st.markdown(f"<span style='color:{AFTER_COLOR}'>Fremtidig behov fra strømnettet for alle scenariene som varighetskurver".replace(",", " "), unsafe_allow_html=True)
+    st.markdown(f"<span style='color:{AFTER_COLOR}'>Varighetskurver for effektbehov fra strømnettet i hvert scenario".replace(",", " "), unsafe_allow_html=True)
     keys = list(results.keys())
     data = []
     for key in keys:
@@ -629,12 +680,13 @@ def duration_curve_plot():
     layout = go.Layout(
         margin=dict(b=0, t=0),
         height=300, 
-        xaxis=dict(title=None, showgrid=True), 
-        yaxis=dict(title=None, showgrid=True), 
+        xaxis=dict(title='Timer', showgrid=True), 
+        yaxis=dict(title='Effektbehov (kW)', showgrid=True), 
         separators="* .*",
         showlegend=True,
-        yaxis_ticksuffix=" kW",
-        xaxis_ticksuffix=" timer",)
+        #yaxis_ticksuffix=" kW",
+        #xaxis_ticksuffix=" timer",
+        )
     fig = go.Figure(data=data, layout=layout)
     st.plotly_chart(fig, use_container_width=True, config = {'displayModeBar': True, 'staticPlot': True})
     #st.info("Tips! Klikk på teksten i tegnforklaringen for å skru kurvene av/på.", icon="ℹ️")
@@ -714,22 +766,32 @@ for scenario_name in SCENARIO_NAMES:
 ######################################################################
 ######################################################################
     
+with COLUMN_1:
+    energy_effect_comparison_plot()
+    st.markdown('---')
+    duration_curve_plot()
+
 with COLUMN_2:
-    tab1, tab2 = st.tabs(["Nåværende", "Fremtidig"])
+    tab1, tab2 = st.tabs(["Nåværende", "Valgt fremtidig scenario"])
     #with tab1:
     #    energy_effect_plot()
     with tab1:
         energy_effect_delivered_plot()
     with tab2:
         energy_effect_scenario_plot()
+
+COLUMN_1, COLUMN_2, COLUMN_3 = st.columns([0.5, 2, 0.5])
+with COLUMN_2:
+    duration_curve_plot()
+
 my_bar.progress(int(i + (100 - i)/2), text = "Lager figurer...") 
 ######################################################################
-if SCENARIO_COMPARISON == True:
-    COLUMN_1, COLUMN_2 = st.columns([1.5, 1])
-    with COLUMN_1:
-        energy_effect_comparison_plot()
-    with COLUMN_2:
-        duration_curve_plot()
+#if SCENARIO_COMPARISON == True:
+#    COLUMN_1, COLUMN_2 = st.columns([1.5, 1])
+#    with COLUMN_1:
+#        energy_effect_comparison_plot()
+#    with COLUMN_2:
+#        duration_curve_plot()
     
 my_bar.progress(100, text="Fullført") 
 
